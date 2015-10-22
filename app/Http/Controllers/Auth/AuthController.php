@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Session;
 use Validator;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\ThrottlesLogins;
@@ -34,9 +35,11 @@ class AuthController extends Controller
     public function postRegister(Request $request)
     {
         $validator = $this->validator($request->all());
+
+        // In template content you write your dynamic content if you use <mc:edit> tags.
         $template_content = [];
         $message = array(
-            'subject' => 'Welkom bij de workshop',
+            'subject' => 'Welcome to the workshop',
             'from_email' => 'noreply@workshop.com',
             'from_name' => 'Workshop',
             'to' => array(
@@ -48,12 +51,17 @@ class AuthController extends Controller
             ),
             'merge_vars' => array(
                 array(
-                    'name' => 'NAME',
-                    'content' => $request->input('name')
-                ),
-                array(
-                    'name' => 'EMAIL',
-                    'content' => $request->input('email')
+                    'rcpt' => $request->input('email'),
+                    'vars' => array(
+                        array(
+                            'name' => 'NAME',
+                            'content' => $request->input('name')
+                        ),
+                        array(
+                            'name' => 'EMAIL',
+                            'content' => $request->input('email')
+                        )
+                    )
                 )
             )
         );
@@ -64,9 +72,12 @@ class AuthController extends Controller
             );
         }
 
-        Auth::login($this->create($request->all()));
-
         MandrillMail::messages()->sendTemplate('registration-mail', $template_content, $message);
+
+        // message on homepage when you have succesfully registered.
+        Session::flash('success', 'You have succesfully registered and you are automatically logged in.');
+
+        Auth::login($this->create($request->all()));
 
         return redirect($this->redirectPath());
     }
