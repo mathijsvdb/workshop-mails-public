@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Auth;
 
 use App\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Validator;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\ThrottlesLogins;
 use Illuminate\Foundation\Auth\AuthenticatesAndRegistersUsers;
+use MandrillMail;
 
 class AuthController extends Controller
 {
@@ -27,6 +30,46 @@ class AuthController extends Controller
      * Change redirectpath
      */
     protected $redirectPath = '/';
+
+    public function postRegister(Request $request)
+    {
+        $validator = $this->validator($request->all());
+        $template_content = [];
+        $message = array(
+            'subject' => 'Welkom bij de workshop',
+            'from_email' => 'noreply@workshop.com',
+            'from_name' => 'Workshop',
+            'to' => array(
+                array(
+                    'email' => $request->input('email'),
+                    'name' => $request->input('name'),
+                    'type' => 'to'
+                )
+            ),
+            'merge_vars' => array(
+                array(
+                    'name' => 'NAME',
+                    'content' => $request->input('name')
+                ),
+                array(
+                    'name' => 'EMAIL',
+                    'content' => $request->input('email')
+                )
+            )
+        );
+
+        if ($validator->fails()) {
+            $this->throwValidationException(
+                $request, $validator
+            );
+        }
+
+        Auth::login($this->create($request->all()));
+
+        MandrillMail::messages()->sendTemplate('registration-mail', $template_content, $message);
+
+        return redirect($this->redirectPath());
+    }
 
     /**
      * Create a new authentication controller instance.
